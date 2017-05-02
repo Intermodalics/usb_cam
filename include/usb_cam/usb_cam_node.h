@@ -58,7 +58,7 @@ public:
   ros::NodeHandle node_;
 
   // shared image message
-  sensor_msgs::Image img_;
+  std::string img_frame_id_;
   image_transport::CameraPublisher image_pub_;
 
   // parameters

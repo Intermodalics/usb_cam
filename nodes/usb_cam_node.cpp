@@ -85,7 +85,7 @@ void UsbCamNode::onInit()
   node_.param("white_balance", white_balance_, 4000);
 
   // load the camera info
-  node_.param("camera_frame_id", img_.header.frame_id, std::string("head_camera"));
+  node_.param("camera_frame_id", img_frame_id_, std::string("head_camera"));
   node_.param("camera_name", camera_name_, std::string("head_camera"));
   node_.param("camera_info_url", camera_info_url_, std::string(""));
   cinfo_.reset(new camera_info_manager::CameraInfoManager(node_, camera_name_, camera_info_url_));
@@ -99,7 +99,7 @@ void UsbCamNode::onInit()
   {
     cinfo_->setCameraName(video_device_name_);
     sensor_msgs::CameraInfo camera_info;
-    camera_info.header.frame_id = img_.header.frame_id;
+    camera_info.header.frame_id = img_frame_id_;
     camera_info.width = image_width_;
     camera_info.height = image_height_;
     cinfo_->setCameraInfo(camera_info);
@@ -213,16 +213,16 @@ void UsbCamNode::publish() {
     std::unique_lock<std::mutex> lock(image_mutex_);
     image_cv_.wait(lock, [this] { return !image_queue_.empty(); });
     while (!image_queue_.empty()) {
-      img_ = image_queue_.front();
+      const sensor_msgs::Image img = image_queue_.front();
       image_queue_.pop();
 
       // Grab the camera info.
       sensor_msgs::CameraInfoPtr ci(new sensor_msgs::CameraInfo(cinfo_->getCameraInfo()));
-      ci->header.frame_id = img_.header.frame_id;
-      ci->header.stamp = img_.header.stamp;
+      ci->header.frame_id = img_frame_id_;
+      ci->header.stamp = img.header.stamp;
 
       // publish the image
-      image_pub_.publish(img_, *ci);
+      image_pub_.publish(img, *ci);
     }
   }
 }
@@ -236,6 +236,7 @@ void UsbCamNode::grab() {
       std::lock_guard<std::mutex> lock(image_mutex_);
       sensor_msgs::Image image_msg;
       cam_.grab_image(&image_msg);
+      image_msg.header.frame_id = img_frame_id_;
       image_queue_.push(image_msg);
       image_available_ = true;
     }
